@@ -303,7 +303,7 @@ std::shared_ptr<AudioDevice> createMicrophoneDevice() {
     es7210_codec_cfg_t es7210_cfg = {
         .ctrl_if = i2c_ctrl_if,
         .master_mode = false,
-        .mic_selected = ES7120_SEL_MIC1,
+        .mic_selected = ES7210_SEL_MIC1,
         .mclk_src = ES7210_MCLK_FROM_PAD,
         .mclk_div = 0,
     };
