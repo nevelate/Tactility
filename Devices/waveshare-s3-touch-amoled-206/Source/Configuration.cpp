@@ -19,52 +19,20 @@
 #include <Tactility/lvgl/LvglSync.h>
 #include <driver/gpio.h>
 
+#include <ButtonControl.h>
+
 #ifdef ESP_PLATFORM
 #include <esp_system.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #endif
 
+#define TOP_BUTTON GPIO_NUM_0
+#define BOTTOM_BUTTON GPIO_NUM_10
+
 using namespace tt::hal;
 
 static constexpr const char* TAG = "WaveshareAMOLED";
-static bool reset_button_enabled = false;
-
-static void IRAM_ATTR gpio0_reset_isr(void* arg) {
-    // Stop the top app, or restart if no app is running
-    tt::app::stop();
-}
-
-static void setup_reset_button() {
-    gpio_config_t io_conf = {
-        .pin_bit_mask = 1ULL << GPIO_NUM_0,
-        .mode = GPIO_MODE_INPUT,
-        .pull_up_en = GPIO_PULLUP_ENABLE,
-        .pull_down_en = GPIO_PULLDOWN_DISABLE,
-        .intr_type = GPIO_INTR_NEGEDGE
-    };
-
-    auto err = gpio_config(&io_conf);
-    if (err != ESP_OK) {
-        LOG_E(TAG, "GPIO0 config failed");
-        return;
-    }
-
-    auto isr_err = gpio_install_isr_service(0);
-    if (isr_err != ESP_OK && isr_err != ESP_ERR_INVALID_STATE) {
-        LOG_E(TAG, "GPIO ISR service install failed");
-        return;
-    }
-
-    err = gpio_isr_handler_add(GPIO_NUM_0, gpio0_reset_isr, nullptr);
-    if (err != ESP_OK) {
-        LOG_E(TAG, "GPIO0 ISR add failed");
-        return;
-    }
-
-    reset_button_enabled = true;
-    LOG_I(TAG, "GPIO0 reset button enabled");
-}
 
 static ::Device* findI2C() {
     ::Device* i2c = device_find_by_name("i2c0");
@@ -79,7 +47,7 @@ static ::Device* findI2C() {
 static bool initBoot() {
     ESP_LOGI(TAG, "initBoot()");
 
-    setup_reset_button();
+    // setup_reset_button();
 
     ::Device* i2c0 = findI2C();
     if (!i2c0) {
@@ -142,6 +110,21 @@ static DeviceVector createDevices() {
         devices.push_back(axp);
         devices.push_back(std::make_shared<Axp2101Power>(axp));
     }
+
+    auto buttons = std::make_shared<ButtonControl>(std::vector {
+        ButtonControl::PinConfiguration {
+            .pin = TOP_BUTTON,
+            .event = ButtonControl::Event::ShortPress,
+            .action = ButtonControl::Action::UiPressSelected
+        },
+        ButtonControl::PinConfiguration {
+            .pin = TOP_BUTTON,
+            .event = ButtonControl::Event::LongPress,
+            .action = ButtonControl::Action::AppClose
+        }
+    });
+
+    devices.push_back(buttons);
 
     auto touch = createTouch();
     auto display = createDisplay(touch);
